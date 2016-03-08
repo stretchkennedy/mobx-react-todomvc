@@ -49,6 +49,7 @@ export class TodoModel {
       const idx = Math.max(oldTodos.indexOf(todo), 0)
       transport.destroy(todo.id)
       .catch(() => {
+        todo.needsDestroyRetry = true
         this.todos = [...this.todos.slice(0, idx), todo, ...this.todos.slice(idx)]
       })
     }
@@ -82,7 +83,8 @@ export class Todo {
   id
   @observable title
   @observable completed
-  @observable needsRetry = false
+  @observable needsSaveRetry = false
+  @observable needsDestroyRetry = false
 
   constructor(store, title, completed, id) {
     this.store = store
