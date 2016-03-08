@@ -5,6 +5,8 @@ import {createTransport} from '../transport'
 
 const transport = createTransport("todos")
 
+const RETRY_INTERVAL = 1000
+
 export class TodoModel {
   @observable reading = false
   @observable todos = []
@@ -25,7 +27,7 @@ export class TodoModel {
 	return this.todos.length - this.activeTodoCount
   }
 
-  readFromLocalStorage(model) {
+  readFromLocalStorage() {
 	this.reading = true
 
 	transport.fetchAll()
@@ -35,16 +37,21 @@ export class TodoModel {
 	  console.log("loaded")
 	})
 	.catch(() => {
+      setTimeout(() => this.readFromLocalStorage, RETRY_INTERVAL)
 	  console.log("failed to load")
 	})
   }
 
   subscribeTransport() {
-    const destroy = (todo, idx) => {
-      transport.destroy(todo.id)
-    }
-
     var oldTodos = []
+
+    const destroy = (todo) => {
+      const idx = Math.max(oldTodos.indexOf(todo), 0)
+      transport.destroy(todo.id)
+      .catch(() => {
+        this.todos = [...this.todos.slice(0, idx), todo, ...this.todos.slice(idx)]
+      })
+    }
 
 	autorun(() => {
       _.differenceBy(oldTodos, this.todos, "id").forEach(destroy)
@@ -75,6 +82,7 @@ export class Todo {
   id
   @observable title
   @observable completed
+  @observable needsRetry = false
 
   constructor(store, title, completed, id) {
 	this.store = store
@@ -102,15 +110,20 @@ export class Todo {
   }
 
   subscribeTransport() {
+    const save = () => {
+      transport.save(this.id, this.toJson()).then(data => {
+        Object.assign(this, _.pick(data, ["id", "title", "completed"]))
+      })
+      .catch(() => {
+        this.needsRetry = true
+        console.log("failed to save")
+      })
+    }
+
     var running = false
 	autorun(() => {
-      this.toJson()
-	  if (running === true || this.id === undefined) {
-        transport.save(this.id, this.toJson()).then(data => {
-          Object.assign(this, _.pick(data, ["id", "title", "completed"]))
-        })
-      }
-	})
+      if (running === true || this.id === undefined) save()
+    })
     running = true
   }
 
