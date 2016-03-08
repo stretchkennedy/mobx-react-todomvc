@@ -15,18 +15,20 @@ class Transport {
     return fetch(this.route, {method: "GET", headers: jsonHeaders}).then(data => data.json())
   }
 
-  save(obj) {
-    if (obj.id === undefined) {
+  save(id, obj) {
+    if (id === undefined) {
       var method = "POST"
       var uri = this.route
     } else {
       var method = "PUT"
-      var uri = `${this.route}/${obj.id}`
+      var uri = `${this.route}/${id}`
     }
 
-    fetch(uri, {method: method, body: JSON.stringify(obj.toJson()), headers: jsonHeaders})
-    .then(data => data.json())
-    .then(json => Object.assign(obj, json))
+    return fetch(uri, {method: method, body: JSON.stringify(obj), headers: jsonHeaders}).then(data => data.json())
+  }
+
+  destroy(id) {
+    return fetch(`${this.route}/${id}`, {method: "DELETE", headers: jsonHeaders}).then(data => data.json())
   }
 }
 

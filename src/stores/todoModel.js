@@ -1,4 +1,5 @@
 import {observable, computed, autorun} from 'mobx'
+import _ from 'lodash'
 import * as Utils from '../utils'
 import {createTransport} from '../transport'
 
@@ -7,11 +8,10 @@ const transport = createTransport("todos")
 export class TodoModel {
   @observable reading = false
   @observable todos = []
-  _oldIds = []
 
   constructor() {
 	this.readFromLocalStorage()
-	this.subscribeLocalStorageToModel()
+    this.subscribeTransport()
   }
 
   @computed get activeTodoCount() {
@@ -35,21 +35,26 @@ export class TodoModel {
 	  console.log("loaded")
 	})
 	.catch(() => {
-	  //this.readFromLocalStorage(model)
 	  console.log("failed to load")
 	})
   }
 
-  subscribeLocalStorageToModel(model) {
+  subscribeTransport() {
+    const destroy = (todo, idx) => {
+      transport.destroy(todo.id)
+    }
+
+    var oldTodos = []
+
 	autorun(() => {
-	  if (!this.reading) {
-        this.todos.forEach(todo => transport.save(todo))
-	  }
+      _.differenceBy(oldTodos, this.todos, "id").forEach(destroy)
+      oldTodos = this.todos.slice()
 	})
   }
 
+
   addTodo (title) {
-	this.todos.push(new Todo(this, Utils.uuid(), title, false))
+	this.todos.push(new Todo(this, title, false))
   }
 
   toggleAll (checked) {
@@ -71,11 +76,13 @@ export class Todo {
   @observable title
   @observable completed
 
-  constructor(store, id, title, completed) {
+  constructor(store, title, completed, id) {
 	this.store = store
 	this.id = id
 	this.title = title
 	this.completed = completed
+
+    this.subscribeTransport()
   }
 
   toggle() {
@@ -91,14 +98,23 @@ export class Todo {
   }
 
   toJson() {
-	return {
-	  id: this.id,
-	  title: this.title,
-	  completed: this.completed
-	}
+    return _.pick(this, ["id", "title", "completed"])
+  }
+
+  subscribeTransport() {
+    var running = false
+	autorun(() => {
+      this.toJson()
+	  if (running === true || this.id === undefined) {
+        transport.save(this.id, this.toJson()).then(data => {
+          Object.assign(this, _.pick(data, ["id", "title", "completed"]))
+        })
+      }
+	})
+    running = true
   }
 
   static fromJson(store, json) {
-	return new Todo(store, json.id, json.title, json.completed)
+	return new Todo(store, json.title, json.completed, json.id)
   }
 }
