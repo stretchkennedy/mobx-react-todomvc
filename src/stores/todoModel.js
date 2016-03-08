@@ -3,8 +3,9 @@ import * as Utils from '../utils';
 
 export class TodoModel {
 	key;
+	@observable reading = false;
 	@observable todos = [];
-	
+
 	constructor(key) {
 		this.key = key;
 
@@ -24,15 +25,37 @@ export class TodoModel {
 	}
 
 	readFromLocalStorage(model) {
-		this.todos = Utils.getDataFromLocalStore(this.key).map(
-			data => Todo.fromJson(this, data)
-		);
+		this.reading = true
+
+		Utils.getDataFromLocalStore(this.key)
+		.then((json) => {
+			this.todos = json.map(data => Todo.fromJson(this, data));
+			this.reading = false
+			console.log("loaded")
+		})
+		.catch(() => {
+			this.readFromLocalStorage(model)
+			console.log("failed to load")
+		})
 	}
 
 	subscribeLocalStorageToModel(model) {
-		autorun(() =>
+		const storeTodos = () => {
+			if (this.reading) {
+				return
+			}
+
 			Utils.storeDataToLocalStore(this.key, this.todos.map(todo => todo.toJson()))
-		);
+			.then(() => {
+				console.log("saved")
+			})
+			.catch(() => {
+				storeTodos()
+				console.log("failed to save")
+			})
+		}
+
+		autorun(storeTodos);
 	}
 
 	addTodo (title) {

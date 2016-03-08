@@ -1,4 +1,4 @@
-export function	uuid() {
+export function uuid() {
 	/*jshint bitwise:false */
 	var i, random;
 	var uuid = '';
@@ -9,7 +9,7 @@ export function	uuid() {
 			uuid += '-';
 		}
 		uuid += (i === 12 ? 4 : (i === 16 ? (random & 3 | 8) : random))
-			.toString(16);
+		.toString(16);
 	}
 
 	return uuid;
@@ -19,13 +19,30 @@ export function pluralize(count, word) {
 	return count === 1 ? word : word + 's';
 }
 
+function randomFailurePromise(func) {
+	return new Promise((resolve, reject) => {
+		setTimeout(() => {
+			const r = Math.random()
+			if (r > 0.5) {
+				resolve(func())
+			} else {
+				reject("Random failure!")
+			}
+		}, Math.random * 300 + 300)
+	})
+}
+
 export function storeDataToLocalStore(namespace, data) {
-	if (data) {
-		localStorage.setItem(namespace, JSON.stringify(data));
-	}
+	return randomFailurePromise(() => {
+		if (data) {
+			localStorage.setItem(namespace, JSON.stringify(data));
+		}
+	})
 }
 
 export function getDataFromLocalStore(namespace) {
-	var store = localStorage.getItem(namespace);
-	return (store && JSON.parse(store)) || [];
+	return randomFailurePromise(() => {
+		var store = localStorage.getItem(namespace);
+		return (store && JSON.parse(store)) || [];
+	})
 }
