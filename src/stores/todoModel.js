@@ -35,11 +35,11 @@ export class TodoModel {
 	  this.todos = json.map(data => Todo.fromJson(this, data))
 	  this.reading = false
 	  console.log("loaded")
-	})
-	.catch(() => {
+    })
+    .catch(() => {
       setTimeout(() => this.readFromLocalStorage, RETRY_INTERVAL)
-	  console.log("failed to load")
-	})
+      console.log("failed to load")
+    })
   }
 
   subscribeTransport() {
