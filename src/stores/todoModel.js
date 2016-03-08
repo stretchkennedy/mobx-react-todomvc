@@ -12,29 +12,29 @@ export class TodoModel {
   @observable todos = []
 
   constructor() {
-	this.readFromLocalStorage()
+    this.readFromLocalStorage()
     this.subscribeTransport()
   }
 
   @computed get activeTodoCount() {
-	return this.todos.reduce(
-	  (sum, todo) => sum + (todo.completed ? 0 : 1),
-	  0
-	)
+    return this.todos.reduce(
+      (sum, todo) => sum + (todo.completed ? 0 : 1),
+      0
+    )
   }
 
   @computed get completedCount() {
-	return this.todos.length - this.activeTodoCount
+    return this.todos.length - this.activeTodoCount
   }
 
   readFromLocalStorage() {
-	this.reading = true
+    this.reading = true
 
-	transport.fetchAll()
-	.then((json) => {
-	  this.todos = json.map(data => Todo.fromJson(this, data))
-	  this.reading = false
-	  console.log("loaded")
+    transport.fetchAll()
+    .then((json) => {
+      this.todos = json.map(data => Todo.fromJson(this, data))
+      this.reading = false
+      console.log("loaded")
     })
     .catch(() => {
       setTimeout(() => this.readFromLocalStorage, RETRY_INTERVAL)
@@ -53,27 +53,27 @@ export class TodoModel {
       })
     }
 
-	autorun(() => {
+    autorun(() => {
       _.differenceBy(oldTodos, this.todos, "id").forEach(destroy)
       oldTodos = this.todos.slice()
-	})
+    })
   }
 
 
   addTodo (title) {
-	this.todos.push(new Todo(this, title, false))
+    this.todos.push(new Todo(this, title, false))
   }
 
   toggleAll (checked) {
-	this.todos.forEach(
-	  todo => todo.completed = checked
-	)
+    this.todos.forEach(
+      todo => todo.completed = checked
+    )
   }
 
   clearCompleted () {
-	this.todos = this.todos.filter(
-	  todo => !todo.completed
-	)
+    this.todos = this.todos.filter(
+      todo => !todo.completed
+    )
   }
 }
 
@@ -85,24 +85,24 @@ export class Todo {
   @observable needsRetry = false
 
   constructor(store, title, completed, id) {
-	this.store = store
-	this.id = id
-	this.title = title
-	this.completed = completed
+    this.store = store
+    this.id = id
+    this.title = title
+    this.completed = completed
 
     this.subscribeTransport()
   }
 
   toggle() {
-	this.completed = !this.completed
+    this.completed = !this.completed
   }
 
   destroy() {
-	this.store.todos.remove(this)
+    this.store.todos.remove(this)
   }
 
   setTitle(title) {
-	this.title = title
+    this.title = title
   }
 
   toJson() {
@@ -121,13 +121,13 @@ export class Todo {
     }
 
     var running = false
-	autorun(() => {
+    autorun(() => {
       if (running === true || this.id === undefined) save()
     })
     running = true
   }
 
   static fromJson(store, json) {
-	return new Todo(store, json.title, json.completed, json.id)
+    return new Todo(store, json.title, json.completed, json.id)
   }
 }
