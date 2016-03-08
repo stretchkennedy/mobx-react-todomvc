@@ -37,7 +37,7 @@ export class TodoModel {
       console.log("loaded")
     })
     .catch(() => {
-      setTimeout(() => this.readFromLocalStorage, RETRY_INTERVAL)
+      setTimeout(() => this.readFromLocalStorage(), RETRY_INTERVAL)
       console.log("failed to load")
     })
   }
