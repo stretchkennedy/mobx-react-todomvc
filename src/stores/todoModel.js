@@ -65,8 +65,8 @@ var Todo = class {
 // semi-colon is necessary
 ;[TodoModel, Todo] = attachTransport({
   collection: {klass: TodoModel, name: "todos"},
-  object: {klass: Todo, fields: Todo.EXTERNAL_FIELDS},
-  transport: createTransport("todos")
+  object:     {klass: Todo, fields: Todo.EXTERNAL_FIELDS},
+  transport:  createTransport("todos")
 })
 
 export { TodoModel, Todo }
