@@ -16,13 +16,10 @@ export function attachTransport({
       var old = []
       const destroy = (obj) => {
         const idx = Math.max(old.indexOf(obj), 0)
+
         transport.destroy(obj.id)
-
-        // stop observing object - it's officially dead
-        .then(() => objDisposers.get(obj)())
-
-        // put object back in collection
-        .catch(() => {
+        .then(() => objDisposers.get(obj)()) // stop observing object - it's officially dead
+        .catch(() => {                       // put object back in collection
           obj.needsDestroyRetry = true
           this[collectionName] = [...this[collectionName].slice(0, idx), obj, ...this[collectionName].slice(idx)]
         })
