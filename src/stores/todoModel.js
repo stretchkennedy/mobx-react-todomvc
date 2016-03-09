@@ -1,8 +1,7 @@
 import {observable, computed} from 'mobx'
 import _ from 'lodash'
 import * as Utils from '../utils'
-import {createTransport} from '../transport'
-import {attachTransport} from './wrappers'
+import {createTransport, attachTransport} from '../transport'
 
 var TodoModel, Todo
 
@@ -65,13 +64,11 @@ Todo = class {
   }
 }
 
-const transport = createTransport("todos")
-;// babel breaks without this
-
-[TodoModel, Todo] = attachTransport({
+// semi-colon is necessary for some reason
+;[TodoModel, Todo] = attachTransport({
   collection: {klass: TodoModel, name: "todos"},
   object: {klass: Todo, fields: Todo.EXTERNAL_FIELDS},
-  transport
+  transport: createTransport("todos")
 })
 
 export { TodoModel, Todo }
