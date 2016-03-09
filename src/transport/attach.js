@@ -31,6 +31,10 @@ export function attachTransport({
       })
 
       //// handle initial data load
+      this.reload()
+    }
+
+    reload() {
       transport.fetchInitial()
       .then((json) => {
         this[collectionName] = json.map(data => new objectClass(this, _.pick(data, fields)))
