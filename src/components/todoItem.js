@@ -27,8 +27,12 @@ export default class TodoItem extends React.Component {
           />
           <label onDoubleClick={this.handleEdit}>
             {todo.title}
-            {todo.needsSaveRetry ? <span style={{color: "red", marginLeft: "20px"}}>(unsaved)</span> : ""}
-            {todo.needsDestroyRetry ? <span style={{color: "red", marginLeft: "20px"}}>(undeleted)</span> : ""}
+            {todo.needsSaveRetry ? <span onClick={this.handleSaveRetry} style={{color: "red", marginLeft: "20px"}}>
+                                     (retry save)
+                                   </span> : ""}
+            {todo.needsDestroyRetry ? <span onClick={this.handleDestroyRetry} style={{color: "red", marginLeft: "20px"}}>
+                                        (retry delete)
+                                      </span> : ""}
           </label>
           <button className="destroy" onClick={this.handleDestroy} />
         </div>
@@ -42,6 +46,14 @@ export default class TodoItem extends React.Component {
         />
       </li>
     );
+  }
+
+  handleSaveRetry = () => {
+    this.props.todo.save()
+  }
+
+  handleDestroyRetry = () => {
+    this.props.todo.destroy()
   }
 
   handleSubmit = (event) => {

@@ -53,27 +53,28 @@ export function attachTransport({
     constructor(...args) {
       super(...args)
 
-      const save = () => {
-        transport.save(this.id, _.pick(this, fields))
-        .then(json =>
-          transaction(() =>
-            Object.assign(this, _.pick(json, fields))
-          )
-        )
-        .catch(() => {
-          this.needsSaveRetry = true
-        })
-      }
-
       const disposer = autorun(() => {
         _.pick(this, fields) // hack to force update
         if (this.__constructed || this.id === undefined) {
-          save()
+          this.save()
         }
       })
 
       objDisposers.set(this, disposer) // allow collection class instances to dispose of observers
       this.__constructed = true
+    }
+
+    save() {
+      transport.save(this.id, _.pick(this, fields))
+      .then(json => {
+        transaction(() => {
+          Object.assign(this, _.pick(json, fields))
+          this.needsSaveRetry = false
+        })
+      })
+      .catch(() => {
+        this.needsSaveRetry = true
+      })
     }
   }
 
