@@ -11,7 +11,7 @@ class Transport {
     this.route = `/${prefix}/${route}`.replace("//", "/")
   }
 
-  fetchAll() {
+  fetchInitial() {
     return fetch(this.route, {method: "GET", headers: jsonHeaders}).then(data => data.json())
   }
 

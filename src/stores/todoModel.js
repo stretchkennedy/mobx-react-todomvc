@@ -1,19 +1,13 @@
-import {observable, computed, autorun, autorunAsync} from 'mobx'
+import {observable, computed} from 'mobx'
 import _ from 'lodash'
 import * as Utils from '../utils'
 import {createTransport} from '../transport'
+import {attachTransport} from './wrappers'
 
-const transport = createTransport("todos")
+var TodoModel, Todo
 
-const AUTORUN_DELAY = 500
-
-export class TodoModel {
+TodoModel = class {
   @observable todos = []
-
-  constructor() {
-    this.readFromTransport()
-    this.subscribeTransport()
-  }
 
   @computed get activeTodoCount() {
     return this.todos.reduce(
@@ -25,38 +19,6 @@ export class TodoModel {
   @computed get completedCount() {
     return this.todos.length - this.activeTodoCount
   }
-
-  readFromTransport() {
-    transport.fetchAll()
-    .then((json) => {
-      this.todos = json.map(data => Todo.fromJson(this, data))
-      console.log("loaded")
-    })
-    .catch(() => {
-      alert("page failed to load!")
-      console.log("failed to load")
-    })
-  }
-
-  subscribeTransport() {
-    var oldTodos = []
-
-    const destroy = (todo) => {
-      const idx = Math.max(oldTodos.indexOf(todo), 0)
-      transport.destroy(todo.id)
-      .then(() => todo.dispose())
-      .catch(() => {
-        todo.needsDestroyRetry = true
-        this.todos = [...this.todos.slice(0, idx), todo, ...this.todos.slice(idx)]
-      })
-    }
-
-    autorun(() => {
-      _.differenceBy(oldTodos, this.todos, "id").forEach(destroy)
-      oldTodos = this.todos.slice()
-    })
-  }
-
 
   addTodo (title) {
     this.todos.push(new Todo(this, title, false))
@@ -75,21 +37,19 @@ export class TodoModel {
   }
 }
 
-export class Todo {
+Todo = class {
   store
   id
   @observable title
   @observable completed
-  @observable needsSaveRetry = false
-  @observable needsDestroyRetry = false
+
+  static JSON_FIELDS = ["id", "title", "completed"]
 
   constructor(store, title, completed, id) {
     this.store = store
     this.id = id
     this.title = title
     this.completed = completed
-
-    this.subscribeTransport()
   }
 
   toggle() {
@@ -108,38 +68,22 @@ export class Todo {
     return _.pick(this, ["id", "title", "completed"])
   }
 
-  subscribeTransport() {
-    var lastSave
-    const save = () => {
-      lastSave = transport.save(this.id, this.toJson()).then(data => {
-        Object.assign(this, _.pick(data, ["id", "title", "completed"]))
-      })
-      lastSave.catch(() => {
-        this.lastSave = null
-        this.needsSaveRetry = true
-        console.log("failed to save")
-      })
-    }
-
-    var firstTime = true
-    this.autorunDisposer = autorunAsync(() => {
-      // if this is the first run, do nothing
-      if (firstTime === true) return
-
-      // if we're already saving, wait until we're finished
-      lastSave ? lastSave.then(save) : save()
-    }, AUTORUN_DELAY)
-    firstTime = false
-
-    // if we don't have an id, save for the first time
-    if (this.id === undefined) save()
-  }
-
-  dispose() {
-    this.autorunDisposer && this.autorunDisposer()
+  mergeJson(json) {
+    Object.assign(this, _.pick(json, ["id", "title", "completed"]))
   }
 
   static fromJson(store, json) {
     return new Todo(store, json.title, json.completed, json.id)
   }
 }
+
+const transport = createTransport("todos")
+;// babel breaks without this
+
+[TodoModel, Todo] = attachTransport({
+  collection: {klass: TodoModel, name: "todos"},
+  object: {klass: Todo, fields: Todo.JSON_FIELDS},
+  transport
+})
+
+export { TodoModel, Todo }
