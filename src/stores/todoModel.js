@@ -1,18 +1,17 @@
-import {observable, computed, autorun} from 'mobx'
+import {observable, computed, autorun, autorunAsync} from 'mobx'
 import _ from 'lodash'
 import * as Utils from '../utils'
 import {createTransport} from '../transport'
 
 const transport = createTransport("todos")
 
-const RETRY_INTERVAL = 1000
+const AUTORUN_DELAY = 500
 
 export class TodoModel {
-  @observable reading = false
   @observable todos = []
 
   constructor() {
-    this.readFromLocalStorage()
+    this.readFromTransport()
     this.subscribeTransport()
   }
 
@@ -27,17 +26,14 @@ export class TodoModel {
     return this.todos.length - this.activeTodoCount
   }
 
-  readFromLocalStorage() {
-    this.reading = true
-
+  readFromTransport() {
     transport.fetchAll()
     .then((json) => {
       this.todos = json.map(data => Todo.fromJson(this, data))
-      this.reading = false
       console.log("loaded")
     })
     .catch(() => {
-      setTimeout(() => this.readFromLocalStorage(), RETRY_INTERVAL)
+      alert("page failed to load!")
       console.log("failed to load")
     })
   }
@@ -48,6 +44,7 @@ export class TodoModel {
     const destroy = (todo) => {
       const idx = Math.max(oldTodos.indexOf(todo), 0)
       transport.destroy(todo.id)
+      .then(() => todo.dispose())
       .catch(() => {
         todo.needsDestroyRetry = true
         this.todos = [...this.todos.slice(0, idx), todo, ...this.todos.slice(idx)]
@@ -112,21 +109,34 @@ export class Todo {
   }
 
   subscribeTransport() {
+    var lastSave
     const save = () => {
-      transport.save(this.id, this.toJson()).then(data => {
+      lastSave = transport.save(this.id, this.toJson()).then(data => {
         Object.assign(this, _.pick(data, ["id", "title", "completed"]))
       })
-      .catch(() => {
-        this.needsRetry = true
+      lastSave.catch(() => {
+        this.lastSave = null
+        this.needsSaveRetry = true
         console.log("failed to save")
       })
     }
 
-    var running = false
-    autorun(() => {
-      if (running === true || this.id === undefined) save()
-    })
-    running = true
+    var firstTime = true
+    this.autorunDisposer = autorunAsync(() => {
+      // if this is the first run, do nothing
+      if (firstTime === true) return
+
+      // if we're already saving, wait until we're finished
+      lastSave ? lastSave.then(save) : save()
+    }, AUTORUN_DELAY)
+    firstTime = false
+
+    // if we don't have an id, save for the first time
+    if (this.id === undefined) save()
+  }
+
+  dispose() {
+    this.autorunDisposer && this.autorunDisposer()
   }
 
   static fromJson(store, json) {
