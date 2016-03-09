@@ -18,9 +18,9 @@ export default class TodoOverview extends React.Component {
 				checked={todoModel.activeTodoCount === 0}
 			/>
 			<ul className="todo-list">
-				{this.getVisibleTodos().map(todo =>
+				{this.getVisibleTodos().map((todo, idx) =>
 					(<TodoItem
-						key={todo.id}
+						key={todo.id || `i${idx}`} // handle todos without ids
 						todo={todo}
 						viewModel={viewModel}
 					/>)
