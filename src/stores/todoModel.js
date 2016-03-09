@@ -21,7 +21,7 @@ TodoModel = class {
   }
 
   addTodo (title) {
-    this.todos.push(new Todo(this, title, false))
+    this.todos.push(new Todo(this, {title, completed: false}))
   }
 
   toggleAll (checked) {
@@ -43,9 +43,9 @@ Todo = class {
   @observable title
   @observable completed
 
-  static JSON_FIELDS = ["id", "title", "completed"]
+  static EXTERNAL_FIELDS = ["id", "title", "completed"]
 
-  constructor(store, title, completed, id) {
+  constructor(store, {title, completed, id}) {
     this.store = store
     this.id = id
     this.title = title
@@ -63,18 +63,6 @@ Todo = class {
   setTitle(title) {
     this.title = title
   }
-
-  toJson() {
-    return _.pick(this, ["id", "title", "completed"])
-  }
-
-  mergeJson(json) {
-    Object.assign(this, _.pick(json, ["id", "title", "completed"]))
-  }
-
-  static fromJson(store, json) {
-    return new Todo(store, json.title, json.completed, json.id)
-  }
 }
 
 const transport = createTransport("todos")
@@ -82,7 +70,7 @@ const transport = createTransport("todos")
 
 [TodoModel, Todo] = attachTransport({
   collection: {klass: TodoModel, name: "todos"},
-  object: {klass: Todo, fields: Todo.JSON_FIELDS},
+  object: {klass: Todo, fields: Todo.EXTERNAL_FIELDS},
   transport
 })
 

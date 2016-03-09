@@ -36,7 +36,7 @@ export function attachTransport({
       //// handle initial data load
       transport.fetchInitial()
       .then((json) => {
-        this[collectionName] = json.map(data => objectClass.fromJson(this, data))
+        this[collectionName] = json.map(data => new objectClass(this, _.pick(data, fields)))
       })
       .catch(() => {
         alert("page failed to load!")
@@ -54,10 +54,10 @@ export function attachTransport({
       super(...args)
 
       const save = () => {
-        transport.save(this.id, this.toJson())
+        transport.save(this.id, _.pick(this, fields))
         .then(json =>
           transaction(() =>
-            this.mergeJson(json)
+            Object.assign(this, _.pick(json, fields))
           )
         )
         .catch(() => {
@@ -66,7 +66,7 @@ export function attachTransport({
       }
 
       const disposer = autorun(() => {
-        this.toJson()
+        _.pick(this, fields) // hack to force update
         if (this.__constructed || this.id === undefined) {
           save()
         }
