@@ -3,9 +3,7 @@ import _ from 'lodash'
 import * as Utils from '../utils'
 import {createTransport, attachTransport} from '../transport'
 
-var TodoModel, Todo
-
-TodoModel = class {
+var TodoModel = class {
   @observable todos = []
 
   @computed get activeTodoCount() {
@@ -36,7 +34,7 @@ TodoModel = class {
   }
 }
 
-Todo = class {
+var Todo = class {
   store
   id
   @observable title
@@ -64,7 +62,7 @@ Todo = class {
   }
 }
 
-// semi-colon is necessary for some reason
+// semi-colon is necessary
 ;[TodoModel, Todo] = attachTransport({
   collection: {klass: TodoModel, name: "todos"},
   object: {klass: Todo, fields: Todo.EXTERNAL_FIELDS},
