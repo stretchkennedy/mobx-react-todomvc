@@ -10,6 +10,7 @@ export function attachTransport({
 
   collectionClass = class extends collectionClass {
     @observable loading = false
+    @observable locallyDestroyed = []
 
     constructor(...args) {
       super(...args)
@@ -38,10 +39,15 @@ export function attachTransport({
 
           // destroy object
           const idx = Math.max(old.indexOf(obj), 0)
+          this.locallyDestroyed.push(obj)
           obj.destroying = true
+
           transport.destroy(obj.id)
           .then(cleanup)
-          .finally(() => obj.destroying = false)
+          .finally(() => {
+            obj.destroying = false
+            this.locallyDestroyed.remove(obj)
+          })
           .catch(() => {
             obj.needsDestroyRetry = true
             this[collectionName] = [           // put object back in collection
@@ -60,18 +66,30 @@ export function attachTransport({
 
       //// handle initial data load
       this.reload()
+      setInterval(this.reload.bind(this), 2000)
     }
 
     reload() {
       this.loading = true
       transport.fetchInitial()
-      .finally(() => this.loading = false)
       .then((json) => {
-        const remote = json.map(data => new objectClass(this, _.pick(data, fields)))
-        const persisted = this[collectionName].filter((obj) => obj.isPersisted)
-        const unpersisted = this[collectionName].filter((obj) => !obj.isPersisted)
-        this[collectionName] = _.uniqBy(remote.concat(persisted)).concat(unpersisted)
+        const persisted = this[collectionName].filter((obj) => obj.isPersisted())
+        const unpersisted = this[collectionName].filter((obj) => !obj.isPersisted())
+
+        // calculate newly added objects, without locally deleted objects
+        const added = _.differenceBy(json, persisted.concat(...this.locallyDestroyed), "id").map((data) => {
+          return new objectClass(this, _.pick(data, fields))
+        })
+
+        // merge new and old objects
+        const retained = _.intersectionBy(persisted, json, "id")
+        const remoteById = _.groupBy(json, "id")
+        transaction(() => {
+          retained.forEach((obj) => Object.assign(obj, ...remoteById[obj.id]))
+          this[collectionName] = _.sortBy(retained.concat(added), "id").concat(unpersisted)
+        })
       })
+      .finally(() => this.loading = false)
       .catch(() => {
         alert("page failed to load!")
       })
