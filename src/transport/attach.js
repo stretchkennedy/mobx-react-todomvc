@@ -32,6 +32,7 @@ export function attachTransport({
 
           // final cleanup once we know the object is gone
           const cleanup = () => {
+            delete obj.id
             obj.needsDestroyRetry = false
             objDisposerMap.get(obj)()           // stop observing object - it's officially dead
             objDisposerMap.delete(obj)
