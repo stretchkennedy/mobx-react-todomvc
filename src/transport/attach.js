@@ -89,12 +89,14 @@ export function attachTransport({
         // merge new objects unless the old objects are saving
         const retained = _.intersectionBy(persisted, json, "id")
         const remotesById = _.groupBy(remotes, "id")
-        transaction(() => {
-          retained.filter((obj) => !obj.saving).forEach((obj) => {
-            Object.assign(obj, ...remotesById[obj.id])
-          })
-          this[collectionName] = _.sortBy(retained.concat(added), "id").concat(unpersisted)
-        })
+        retained.filter((obj) => !obj.saving).forEach((obj) =>
+          obj.__withoutSaving(() =>
+            transaction(() => {
+              Object.assign(obj, ...remotesById[obj.id])
+            })
+          )
+        )
+        this[collectionName] = _.sortBy(retained.concat(added), "id").concat(unpersisted)
         this.needsReload = false
       })
       .finally(() => this.loading = false)
@@ -110,20 +112,23 @@ export function attachTransport({
     @observable destroying = false
     @observable needsSaveRetry = false
     @observable needsDestroyRetry = false
-    __constructed = false
+    __autosaveEnabled = false
     __cancelPendingIo
 
     constructor(...args) {
       super(...args)
 
-        // save when important fields change
+      // save when important fields change
       const disposer = autorun(() => {
         _.pick(this, fields) // hack to ensure we observe the relevant fields
-        if (!this.__constructed && this.isPersisted()) return // don't save when creating already saved objects
-        this.save()
+        if (this.__autosaveEnabled) this.save() // don't save when creating already saved objects
       })
+
+      // save if not persisted
+      if (!this.isPersisted()) this.save()
+
       objDisposerMap.set(this, disposer)
-      this.__constructed = true
+      this.__autosaveEnabled = true
     }
 
     save() {
@@ -137,15 +142,28 @@ export function attachTransport({
       })
     }
 
+    isPersisted() {
+      return this.id !== undefined
+    }
+
     __setNextIO(f) {
       if (this.destroying) return false // don't allow io operations to be queued after destruction
       this.__cancelPendingIo && this.__cancelPendingIo()
-      this.__cancelPendingIo = when(() => !this.saving, f)
+      const autosaveWasEnabled = this.__autosaveEnabled
+      this.__cancelPendingIo = when(
+        () => !this.saving,
+        () => {
+          autosaveWasEnabled ? f() : __withoutSaving(f)
+        }
+      )
       return true
     }
 
-    isPersisted() {
-      return this.id !== undefined
+    __withoutSaving(f) {
+      const oldValue = this.__autosaveEnabled
+      this.__autosaveEnabled = false
+      f()
+      this.__autosaveEnabled = oldValue
     }
   }
 
