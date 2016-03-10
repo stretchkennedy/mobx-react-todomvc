@@ -10,7 +10,9 @@ export default class TodoEntry extends React.Component {
     return (<input
       ref="newField"
       className="new-todo"
-      placeholder={this.props.todoModel.loading ? "Loading..." : "What needs to be done?"}
+      placeholder={this.props.todoModel.needsReload ? "<disconnected>" :
+                   this.props.todoModel.loading ? "Loading..." :
+                   "What needs to be done?"}
       onKeyDown={this.handleNewTodoKeyDown}
       autoFocus={true}
     />);

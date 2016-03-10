@@ -10,6 +10,7 @@ export function attachTransport({
 
   collectionClass = class extends collectionClass {
     @observable loading = false
+    @observable needsReload = false
     @observable locallyDestroyed = []
 
     constructor(...args) {
@@ -91,10 +92,11 @@ export function attachTransport({
           })
           this[collectionName] = _.sortBy(retained.concat(added), "id").concat(unpersisted)
         })
+        this.needsReload = false
       })
       .finally(() => this.loading = false)
       .catch(() => {
-        alert("page failed to load!")
+        this.needsReload = true
       })
     }
   }
