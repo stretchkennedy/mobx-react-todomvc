@@ -112,9 +112,10 @@ export function attachTransport({
     }
 
     __setNextIO(f) {
-      if (this.destroying) return // don't allow io operations to be queued after destruction
+      if (this.destroying) return false // don't allow io operations to be queued after destruction
       this.__cancelPendingIo && this.__cancelPendingIo()
       this.__cancelPendingIo = when(() => !this.saving, f)
+      return true
     }
 
     isPersisted() {
