@@ -23,12 +23,13 @@ export function attachTransport({
         // remember index of object
         const idx = Math.max(old.indexOf(obj), 0)
 
-        // wait until current
+        // wait until current IO is finished
         obj.__setNextIO(() => {
           // don't destroy objects already being destroyed
           if (obj.destroying) {
             return
           }
+
           // final cleanup once we know the object is gone
           const cleanup = () => {
             obj.needsDestroyRetry = false
