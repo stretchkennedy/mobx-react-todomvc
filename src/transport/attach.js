@@ -138,7 +138,7 @@ export function attachTransport({
         this.saving = true
 
         transport.save(this.id, _.pick(this, fields))
-        .then(json => Object.assign(this, _.pick(json, fields), {needsSaveRetry: false}))
+        .then(json => this.id = this.id || json.id)
         .finally(() => this.saving = false)
         .catch(() => this.needsSaveRetry = true)
       })
