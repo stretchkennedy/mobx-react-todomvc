@@ -75,17 +75,20 @@ export function attachTransport({
       .then((json) => {
         const persisted = this[collectionName].filter((obj) => obj.isPersisted())
         const unpersisted = this[collectionName].filter((obj) => !obj.isPersisted())
+        const remotes = json.map((data) => _.pick(data, fields))
 
         // calculate newly added objects, without locally deleted objects
         const added = _.differenceBy(json, persisted.concat(...this.locallyDestroyed), "id").map((data) => {
           return new objectClass(this, _.pick(data, fields))
         })
 
-        // merge new and old objects
+        // merge new objects unless the old objects are saving
         const retained = _.intersectionBy(persisted, json, "id")
-        const remoteById = _.groupBy(json, "id")
+        const remotesById = _.groupBy(remotes, "id")
         transaction(() => {
-          retained.forEach((obj) => Object.assign(obj, ...remoteById[obj.id]))
+          retained.filter((obj) => !obj.saving).forEach((obj) => {
+            Object.assign(obj, ...remotesById[obj.id])
+          })
           this[collectionName] = _.sortBy(retained.concat(added), "id").concat(unpersisted)
         })
       })
