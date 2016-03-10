@@ -27,6 +27,8 @@ export default class TodoItem extends React.Component {
           />
           <label onDoubleClick={this.handleEdit}>
             {todo.title}
+            {todo.saving ? <span style={{color: "grey"}}>(saving...)</span> : ""}
+            {todo.destroying ? <span style={{color: "grey"}}>(destroying...)</span> : ""}
             {todo.needsSaveRetry ? <span onClick={this.handleSaveRetry} style={{color: "red", marginLeft: "20px"}}>
                                      (retry save)
                                    </span> : ""}
