@@ -5,7 +5,7 @@ var childProcess = require('child_process')
 
 childProcess.spawn(
   __dirname + '/node_modules/json-server/bin/index.js',
-  ['--port', '3001', '--watch', __dirname + '/db.json'],
+  ['--port', '3001', '--delay', '5000', '--watch', __dirname + '/db.json'],
   { stdio: 'inherit' }
 )
 
