@@ -155,7 +155,7 @@ export function attachTransport({
       this.__cancelPendingIo = when(
         () => !this.saving,
         () => {
-          autosaveWasEnabled ? f() : __withoutSaving(f)
+          autosaveWasEnabled ? f() : this.__withoutSaving(f)
         }
       )
       return true
