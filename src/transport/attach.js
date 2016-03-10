@@ -19,6 +19,10 @@ export function attachTransport({
       //// handle destruction
       var old = []
       const destroy = (obj) => {
+
+        // remember index of object
+        const idx = Math.max(old.indexOf(obj), 0)
+
         // wait until current
         obj.__setNextIO(() => {
           // don't destroy objects already being destroyed
@@ -39,16 +43,15 @@ export function attachTransport({
           }
 
           // destroy object
-          const idx = Math.max(old.indexOf(obj), 0)
           this.locallyDestroyed.push(obj)
           obj.destroying = true
 
           transport.destroy(obj.id)
-          .then(cleanup)
           .finally(() => {
             obj.destroying = false
             this.locallyDestroyed.remove(obj)
           })
+          .then(cleanup)
           .catch(() => {
             obj.needsDestroyRetry = true
             this[collectionName] = [           // put object back in collection
