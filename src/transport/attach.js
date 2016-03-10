@@ -139,7 +139,10 @@ export function attachTransport({
 
         transport.save(this.id, _.pick(this, fields))
         .then(json => this.id = this.id || json.id)
-        .finally(() => this.saving = false)
+        .finally(() => {
+          this.needsSaveRetry = false
+          this.saving = false
+        })
         .catch(() => this.needsSaveRetry = true)
       })
     }
