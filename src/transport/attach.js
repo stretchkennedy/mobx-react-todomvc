@@ -25,37 +25,23 @@ export function attachTransport({
 
         // wait until current IO is finished
         obj.__setNextIO(() => {
-          // don't destroy objects already being destroyed
-          if (obj.destroying) {
-            return
-          }
-
-          // final cleanup once we know the object is gone
-          const cleanup = () => {
-            delete obj.id
-            obj.needsDestroyRetry = false
-            objDisposerMap.get(obj)()           // stop observing object - it's officially dead
-            objDisposerMap.delete(obj)
-          }
-
-          // clean up objects that haven't been saved and aren't being saved immediately
-          if (!obj.isPersisted()) {
-            cleanup()
-            return
-          }
-
           // destroy object
           this.locallyDestroyed.push(obj)
           obj.destroying = true
 
           adapter.destroy(obj.id)
+          .then(() => {
+            delete obj.id
+            obj.retryDestroy = null
+            objDisposerMap.get(obj)()           // stop observing object - it's officially dead
+            objDisposerMap.delete(obj)
+          })
           .finally(() => {
             obj.destroying = false
             this.locallyDestroyed.remove(obj)
           })
-          .then(cleanup)
           .catch(() => {
-            obj.needsDestroyRetry = true
+            obj.retryDestroy = destroy.bind(this, obj)
             this[collectionName] = [           // put object back in collection
               ...this[collectionName].slice(0, idx),
               obj,
@@ -67,6 +53,7 @@ export function attachTransport({
 
       autorun(() => {
         _.difference(old, this[collectionName]).forEach(destroy)
+        _.difference(this[collectionName], old).filter(obj => !obj.isPersisted()).forEach(obj => obj.create())
         old = this[collectionName].slice()
       })
 
@@ -112,8 +99,10 @@ export function attachTransport({
   objectClass = class extends objectClass {
     @observable saving = false
     @observable destroying = false
-    @observable needsSaveRetry = false
-    @observable needsDestroyRetry = false
+    @observable creating = false
+    @observable retrySave
+    @observable retryDestroy
+    @observable retryCreate
     __autosaveEnabled = false
     __cancelPendingIo
 
@@ -126,24 +115,36 @@ export function attachTransport({
         if (this.__autosaveEnabled) this.save() // don't save when creating already saved objects
       })
 
-      // save if not persisted
-      if (!this.isPersisted()) this.save()
-
       objDisposerMap.set(this, disposer)
       this.__autosaveEnabled = true
     }
 
     save() {
       this.__setNextIO(() => {
+        if (!this.isPersisted()) throw new Error("tried to save unpersisted object")
         this.saving = true
 
         adapter.save(this.id, _.pick(this, fields))
-        .then(json => this.id = this.id || json.id)
         .finally(() => {
-          this.needsSaveRetry = false
+          this.retrySave = null
           this.saving = false
         })
-        .catch(() => this.needsSaveRetry = true)
+        .catch(() => this.retrySave = this.save.bind(this))
+      })
+    }
+
+    create() {
+      this.__setNextIO(() => {
+        if(this.isPersisted()) return
+
+        this.creating = true
+        adapter.create(_.pick(this, fields))
+        .then(data => {
+          this.id = data.id
+          this.retryCreate = null
+        })
+        .finally(() => this.creating = false)
+        .catch(() => this.retryCreate = this.create.bind(this))
       })
     }
 

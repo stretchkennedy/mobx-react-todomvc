@@ -27,12 +27,16 @@ export default class TodoItem extends React.Component {
           />
           <label onDoubleClick={this.handleEdit}>
             {todo.title}
+            {todo.creating ? <span style={{color: "grey"}}>(creating...)</span> : ""}
             {todo.saving ? <span style={{color: "grey"}}>(saving...)</span> : ""}
             {todo.destroying ? <span style={{color: "grey"}}>(destroying...)</span> : ""}
-            {todo.needsSaveRetry ? <span onClick={this.handleSaveRetry} style={{color: "red", marginLeft: "20px"}}>
+            {todo.retryCreate ? <span onClick={this.handleCreateRetry} style={{color: "red", marginLeft: "20px"}}>
+                                        (retry create)
+                                      </span> : ""}
+            {todo.retrySave ? <span onClick={this.handleSaveRetry} style={{color: "red", marginLeft: "20px"}}>
                                      (retry save)
                                    </span> : ""}
-            {todo.needsDestroyRetry ? <span onClick={this.handleDestroyRetry} style={{color: "red", marginLeft: "20px"}}>
+            {todo.retryDestroy ? <span onClick={this.handleDestroyRetry} style={{color: "red", marginLeft: "20px"}}>
                                         (retry delete)
                                       </span> : ""}
           </label>
@@ -50,12 +54,16 @@ export default class TodoItem extends React.Component {
     );
   }
 
+  handleCreateRetry = () => {
+    this.props.todo.retryCreate()
+  }
+
   handleSaveRetry = () => {
-    this.props.todo.save()
+    this.props.todo.retrySave()
   }
 
   handleDestroyRetry = () => {
-    this.props.todo.destroy()
+    this.props.todo.retryDestroy()
   }
 
   handleSubmit = (event) => {
