@@ -15,20 +15,20 @@ export class JsonAdapter {
     return fetch(this.route, {method: "GET", headers: jsonHeaders}).then(data => data.json())
   }
 
-  save(id, obj) {
+  save(id, json) {
     if (id === undefined) return Promise.reject()
 
     return fetch(
       `${this.route}/${id}`,
-      {method: "PUT", body: JSON.stringify(obj), headers: jsonHeaders}
+      {method: "PUT", body: JSON.stringify(json), headers: jsonHeaders}
     )
     .then(data => data.json())
   }
 
-  create(obj) {
+  create(json) {
     return fetch(
       this.route,
-      {method: "POST", body: JSON.stringify(obj), headers: jsonHeaders}
+      {method: "POST", body: JSON.stringify(json), headers: jsonHeaders}
     )
     .then(data => data.json())
   }
