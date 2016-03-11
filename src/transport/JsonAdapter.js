@@ -4,7 +4,7 @@ const jsonHeaders = new Headers({
 
 const prefix = "api"
 
-class Transport {
+export class JsonAdapter {
   route
 
   constructor(route) {
@@ -16,22 +16,24 @@ class Transport {
   }
 
   save(id, obj) {
-    if (id === undefined) {
-      var method = "POST"
-      var uri = this.route
-    } else {
-      var method = "PUT"
-      var uri = `${this.route}/${id}`
-    }
+    if (id === undefined) return Promise.reject()
 
-    return fetch(uri, {method: method, body: JSON.stringify(obj), headers: jsonHeaders}).then(data => data.json())
+    return fetch(
+      `${this.route}/${id}`,
+      {method: "PUT", body: JSON.stringify(obj), headers: jsonHeaders}
+    )
+    .then(data => data.json())
+  }
+
+  create(obj) {
+    return fetch(
+      this.route,
+      {method: "POST", body: JSON.stringify(obj), headers: jsonHeaders}
+    )
+    .then(data => data.json())
   }
 
   destroy(id) {
     return fetch(`${this.route}/${id}`, {method: "DELETE", headers: jsonHeaders}).then(data => data.json())
   }
-}
-
-export function createTransport(route) {
-  return new Transport(route)
 }

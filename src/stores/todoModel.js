@@ -1,7 +1,7 @@
 import {observable, computed} from 'mobx'
 import _ from 'lodash'
 import * as Utils from '../utils'
-import {createTransport, attachTransport} from '../transport'
+import {JsonAdapter, attachTransport} from '../transport'
 
 var TodoModel = class {
   @observable todos = []
@@ -66,7 +66,7 @@ var Todo = class {
 ;[TodoModel, Todo] = attachTransport({
   collection: {klass: TodoModel, name: "todos"},
   object:     {klass: Todo, fields: Todo.EXTERNAL_FIELDS},
-  transport:  createTransport("todos")
+  adapter:    new JsonAdapter("todos")
 })
 
 export { TodoModel, Todo }

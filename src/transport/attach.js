@@ -4,7 +4,7 @@ import 'promise.prototype.finally'
 export function attachTransport({
   collection: {klass: collectionClass, name: collectionName},
   object: {klass: objectClass, fields: fields},
-  transport
+  adapter
 }) {
   const objDisposerMap = new Map()
 
@@ -48,7 +48,7 @@ export function attachTransport({
           this.locallyDestroyed.push(obj)
           obj.destroying = true
 
-          transport.destroy(obj.id)
+          adapter.destroy(obj.id)
           .finally(() => {
             obj.destroying = false
             this.locallyDestroyed.remove(obj)
@@ -77,7 +77,7 @@ export function attachTransport({
 
     reload() {
       this.loading = true
-      transport.fetchInitial()
+      adapter.fetchInitial()
       .then((json) => {
         const persisted = this[collectionName].filter((obj) => obj.isPersisted())
         const unpersisted = this[collectionName].filter((obj) => !obj.isPersisted())
@@ -137,7 +137,7 @@ export function attachTransport({
       this.__setNextIO(() => {
         this.saving = true
 
-        transport.save(this.id, _.pick(this, fields))
+        adapter.save(this.id, _.pick(this, fields))
         .then(json => this.id = this.id || json.id)
         .finally(() => {
           this.needsSaveRetry = false
