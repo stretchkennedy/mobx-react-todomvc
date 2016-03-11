@@ -30,15 +30,9 @@ export default class TodoItem extends React.Component {
             {todo.creating ? <span style={{color: "grey"}}>(creating...)</span> : ""}
             {todo.saving ? <span style={{color: "grey"}}>(saving...)</span> : ""}
             {todo.destroying ? <span style={{color: "grey"}}>(destroying...)</span> : ""}
-            {todo.retryCreate ? <span onClick={this.handleCreateRetry} style={{color: "red", marginLeft: "20px"}}>
-                                        (retry create)
-                                      </span> : ""}
-            {todo.retrySave ? <span onClick={this.handleSaveRetry} style={{color: "red", marginLeft: "20px"}}>
-                                     (retry save)
-                                   </span> : ""}
-            {todo.retryDestroy ? <span onClick={this.handleDestroyRetry} style={{color: "red", marginLeft: "20px"}}>
-                                        (retry delete)
-                                      </span> : ""}
+            {todo.retryCreate ? <span onClick={todo.retryCreate} style={{color: "red", marginLeft: "20px"}}>(retry create)</span> : ""}
+            {todo.retrySave ? <span onClick={todo.retrySave} style={{color: "red", marginLeft: "20px"}}>(retry save)</span> : ""}
+            {todo.retryDestroy ? <span onClick={todo.retryDestroy} style={{color: "red", marginLeft: "20px"}}>(retry delete)</span> : ""}
           </label>
           <button className="destroy" onClick={this.handleDestroy} />
         </div>
@@ -52,18 +46,6 @@ export default class TodoItem extends React.Component {
         />
       </li>
     );
-  }
-
-  handleCreateRetry = () => {
-    this.props.todo.retryCreate()
-  }
-
-  handleSaveRetry = () => {
-    this.props.todo.retrySave()
-  }
-
-  handleDestroyRetry = () => {
-    this.props.todo.retryDestroy()
   }
 
   handleSubmit = (event) => {
