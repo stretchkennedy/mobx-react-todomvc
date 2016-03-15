@@ -53,7 +53,7 @@ export function attachTransport({
 
       autorun(() => {
         _.difference(old, this[collectionName]).forEach(destroy)
-        _.difference(this[collectionName], old).filter(obj => !obj.isPersisted()).forEach(obj => obj.create())
+        _.difference(this[collectionName], old).filter(obj => !obj.isPersisted()).forEach(obj => obj.__create())
         old = this[collectionName].slice()
       })
 
@@ -112,14 +112,18 @@ export function attachTransport({
       // save when important fields change
       const disposer = autorun(() => {
         _.pick(this, fields) // hack to ensure we observe the relevant fields
-        if (this.__autosaveEnabled) this.save() // don't save when creating already saved objects
+        if (this.__autosaveEnabled) this.__save() // don't save when creating already saved objects
       })
 
       objDisposerMap.set(this, disposer)
       this.__autosaveEnabled = true
     }
 
-    save() {
+    isPersisted() {
+      return this.id !== undefined
+    }
+
+    __save() {
       this.__setNextIO(() => {
         if (!this.isPersisted()) throw new Error("tried to save unpersisted object")
         this.saving = true
@@ -129,11 +133,11 @@ export function attachTransport({
           this.retrySave = null
           this.saving = false
         })
-        .catch(() => this.retrySave = this.save.bind(this))
+        .catch(() => this.retrySave = this.__save.bind(this))
       })
     }
 
-    create() {
+    __create() {
       this.__setNextIO(() => {
         if(this.isPersisted()) return
 
@@ -144,12 +148,8 @@ export function attachTransport({
           this.retryCreate = null
         })
         .finally(() => this.creating = false)
-        .catch(() => this.retryCreate = this.create.bind(this))
+        .catch(() => this.retryCreate = this.__create.bind(this))
       })
-    }
-
-    isPersisted() {
-      return this.id !== undefined
     }
 
     __setNextIO(f) {
