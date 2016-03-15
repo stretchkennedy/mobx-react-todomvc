@@ -18,7 +18,7 @@ var TodoModel = class {
   }
 
   addTodo (title) {
-    this.todos.push(new Todo(this, {title, completed: false}))
+    this.todos.push(new Todo({title, completed: false}))
   }
 
   toggleAll (checked) {
@@ -35,15 +35,13 @@ var TodoModel = class {
 }
 
 var Todo = class {
-  store
   id
   @observable title
   @observable completed
 
   static EXTERNAL_FIELDS = ["id", "title", "completed"]
 
-  constructor(store, {title, completed, id}) {
-    this.store = store
+  constructor({title, completed, id}) {
     this.id = id
     this.title = title
     this.completed = completed

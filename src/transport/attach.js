@@ -12,54 +12,25 @@ export function attachTransport({
     @observable loading = false
     @observable needsReload = false
     @observable locallyDestroyed = []
+    __old = []
 
     constructor(...args) {
       super(...args)
 
-      //// handle destruction
-      var old = []
-      const destroy = (obj) => {
-
-        // remember index of object
-        const idx = Math.max(old.indexOf(obj), 0)
-
-        // wait until current IO is finished
-        obj.__setNextIO(() => {
-          // destroy object
-          this.locallyDestroyed.push(obj)
-          obj.destroying = true
-
-          adapter.destroy(obj.id)
-          .then(() => {
-            delete obj.id
-            obj.retryDestroy = null
-            objDisposerMap.get(obj)()           // stop observing object - it's officially dead
-            objDisposerMap.delete(obj)
-          })
-          .finally(() => {
-            obj.destroying = false
-            this.locallyDestroyed.remove(obj)
-          })
-          .catch(() => {
-            obj.retryDestroy = destroy.bind(this, obj)
-            this[collectionName] = [           // put object back in collection
-              ...this[collectionName].slice(0, idx),
-              obj,
-              ...this[collectionName].slice(idx)
-            ]
-          })
-        })
-      }
-
       autorun(() => {
-        _.difference(old, this[collectionName]).forEach(destroy)
-        _.difference(this[collectionName], old).filter(obj => !obj.isPersisted()).forEach(obj => obj.__create())
-        old = this[collectionName].slice()
+        _.difference(this.__old, this[collectionName])
+        .forEach(obj => obj.__destroy())
+
+        const newObjs = _.difference(this[collectionName], this.__old)
+        newObjs.forEach(obj => obj.store = this)
+        newObjs.filter(obj => !obj.isPersisted()).forEach(obj => obj.__create())
+
+        this.__old = this[collectionName].slice()
       })
 
       //// handle initial data load
       this.reload()
-      setInterval(this.reload.bind(this), 2000)
+      //setInterval(this.reload.bind(this), 2000)
     }
 
     reload() {
@@ -72,7 +43,7 @@ export function attachTransport({
 
         // calculate newly added objects, without locally deleted objects
         const added = _.differenceBy(json, persisted.concat(...this.locallyDestroyed), "id").map((data) => {
-          return new objectClass(this, _.pick(data, fields))
+          return new objectClass(_.pick(data, fields))
         })
 
         // merge new objects unless the old objects are saving
@@ -123,6 +94,39 @@ export function attachTransport({
       return this.id !== undefined
     }
 
+    __destroy() {
+      // remember index of object
+      const idx = Math.max(this.store.__old.indexOf(this), 0)
+
+      // wait until current IO is finished
+      this.__setNextIO(() => {
+        // destroy thisect
+        this.store.locallyDestroyed.push(this)
+        this.destroying = true
+
+        adapter.destroy(this.id)
+        .then(() => {
+          delete this.id
+          this.retryDestroy = null
+          objDisposerMap.get(this)()           // stop observing object - it's officially dead
+          objDisposerMap.delete(this)
+        })
+        .finally(() => {
+          this.destroying = false
+          this.store.locallyDestroyed.remove(this)
+        })
+        .catch(() => {
+          this.retryDestroy = this.__destroy.bind(this)
+          this.store[collectionName] = [           // put object back in collection
+            ...this.store[collectionName].slice(0, idx),
+            this,
+            ...this.store[collectionName].slice(idx)
+          ]
+        })
+      })
+    }
+
+
     __save() {
       this.__setNextIO(() => {
         if (!this.isPersisted()) throw new Error("tried to save unpersisted object")
@@ -154,11 +158,13 @@ export function attachTransport({
 
     __setNextIO(f) {
       if (this.destroying) return false // don't allow io operations to be queued after destruction
-      this.__cancelPendingIo && this.__cancelPendingIo()
+
       const autosaveWasEnabled = this.__autosaveEnabled
+      this.__cancelPendingIo && this.__cancelPendingIo()
       this.__cancelPendingIo = when(
         () => !this.saving,
         () => {
+          if (!this.store) return
           autosaveWasEnabled ? f() : this.__withoutSaving(f)
         }
       )
