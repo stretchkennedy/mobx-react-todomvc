@@ -1,15 +1,5 @@
-import {observable, autorun, transaction, when, untracked} from 'mobx'
+import {observable, observe, autorun, when} from 'mobx'
 import 'promise.prototype.finally'
-
-const autosaveObj = function(obj, fields=[]) {
-  return autorun(() => {
-    _.pick(obj, fields)                // hack to ensure we observe the relevant fields
-    if (!obj.__autosaveEnabled) {
-      return // don't save when creating already saved objects
-    }
-    obj.__save()
-  })
-}
 
 export function attachTransport({
   collection: {klass: collectionClass, name: collectionName},
@@ -21,29 +11,30 @@ export function attachTransport({
     @observable needsReload = false
     @observable locallyDestroyed = []
     __old = []
-    __objDisposerMap = new Map()
 
     constructor(...args) {
       super(...args)
 
-      autorun(() => {
-        _.difference(this.__old, this[collectionName]).forEach(obj => obj.__destroy())
-
-        const newObjs = _.difference(this[collectionName], this.__old)
-        newObjs.filter(obj => !obj.isPersisted()).forEach(obj => obj.__create())
-        newObjs.forEach(obj => obj.__attachStore(this))
-
-        this.__old = this[collectionName].slice()
-      })
-
       //// handle initial data load
       this.reload()
-      //setInterval(this.reload.bind(this), 2000)
+      .then(() => {
+        autorun(() => {
+          _.difference(this.__old, this[collectionName]).forEach(obj => obj.__destroy())
+
+          const newObjs = _.difference(this[collectionName], this.__old)
+          newObjs.filter(obj => !obj.isPersisted()).forEach(obj => obj.__create())
+          newObjs.forEach(obj => obj.__attachStore(this))
+
+          this.__old = this[collectionName].slice()
+        })
+
+        //setInterval(this.reload.bind(this), 2000)
+      })
     }
 
     reload() {
       this.loading = true
-      adapter.fetchInitial()
+      return adapter.fetchInitial()
       .then((json) => {
         const persisted = this[collectionName].filter((obj) => obj.isPersisted())
         const unpersisted = this[collectionName].filter((obj) => !obj.isPersisted())
@@ -58,12 +49,9 @@ export function attachTransport({
         const retained = _.intersectionBy(persisted, json, "id")
         const remotesById = _.groupBy(remotes, "id")
         retained.filter((obj) => !obj.saving).forEach((obj) => {
-          obj.__withoutSaving(() => {
-            transaction(() => {
-              Object.assign(obj, ...remotesById[obj.id])
-            })
-          })
+          Object.assign(obj, ...remotesById[obj.id])
         })
+
         this[collectionName] = _.sortBy(retained.concat(added), "id").concat(unpersisted)
         this.needsReload = false
       })
@@ -74,6 +62,7 @@ export function attachTransport({
     }
   }
 
+
   objectClass = class extends objectClass {
     @observable saving = false
     @observable destroying = false
@@ -82,8 +71,9 @@ export function attachTransport({
     @observable retryDestroy
     @observable retryCreate
     store
-    __autosaveEnabled = true
+    __autosaveEnabled = false
     __cancelPendingIo
+    __disposer
 
 
     isPersisted() {
@@ -93,15 +83,19 @@ export function attachTransport({
 
     __attachStore(store) {
       this.store = store
-
-      var disposer
-      this.__withoutSaving(() => disposer = autosaveObj(this, fields))
-      this.store.__objDisposerMap.set(this, disposer)
+      this.__disposer = observe(this, (change) => {
+        if(this.__autosaveEnabled && fields.some(field => field === change.name)) {
+          this.__save()
+        }
+      })
+      this.__autosaveEnabled = true
     }
 
 
     __detachStore() {
-      this.store.__objDisposerMap.get(this)()
+      this.__autosaveEnabled = false
+      this.__disposer()
+      delete this.__disposer
       delete this.store
     }
 
@@ -124,11 +118,9 @@ export function attachTransport({
           this.store.locallyDestroyed.remove(this)
         })
         .then(() => {
-          delete this.id
           this.retryDestroy = null
-          this.store.__objDisposerMap.get(this)()           // stop observing object - it's officially dead
-          this.store.__objDisposerMap.delete(this)
           this.__detachStore()
+          delete this.id
         })
         .catch(() => {
           this.retryDestroy = this.__destroy.bind(this)
